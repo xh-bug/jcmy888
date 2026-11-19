@@ -5,7 +5,7 @@ import {
   FIELDS, SAMPLE, DEDUP_MODES, storageAvailable,
   loadRecords, saveRecords, loadDedupMode, saveDedupMode,
   scanDuplicates, removeDuplicates,
-  importText, toTSV, toCSV, fmtTime, findMode,
+  importText, importXlsx, toTSV, toXlsxMergedIP, fmtTime, findMode,
 } from '../utils/accountParser'
 
 const router = useRouter()
@@ -22,6 +22,8 @@ const fileInput = ref(null)
 const toastMsg = ref('')
 const toastShow = ref(false)
 let toastTimer = null
+
+const saveDialog = ref({ open: false, path: '', count: 0, mobile: false })
 
 const editing = ref({ index: -1, key: '', value: '' })
 
@@ -123,20 +125,45 @@ function doImport(text) {
 }
 
 function importFromText() {
-  if (!importTextValue.value.trim()) { toast('请先粘贴内容或选择 CSV 文件'); return }
+  if (!importTextValue.value.trim()) { toast('请先粘贴内容或选择文件'); return }
   doImport(importTextValue.value)
 }
 
 function onFileChange(e) {
   const file = e.target.files && e.target.files[0]
   if (!file) return
-  const reader = new FileReader()
-  reader.onload = (ev) => {
-    importTextValue.value = String((ev.target && ev.target.result) || '')
-    doImport(importTextValue.value)
+  const isXlsx = /\.xlsx$/i.test(file.name)
+
+  if (isXlsx) {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const res = importXlsx(records.value, ev.target.result)
+      if (res.added) persist()
+      if (res.error) {
+        toast('Excel 文件读取失败')
+        return
+      }
+      if (res.empty) {
+        toast('未识别到可导入记录' + (res.skipped ? '，跳过 ' + res.skipped + ' 个空行' : ''))
+      } else {
+        toast('导入新增 ' + res.added + ' 条'
+          + (res.dup ? '，跳过重复 ' + res.dup + ' 条' : '')
+          + (res.skipped ? '，忽略 ' + res.skipped + ' 个空行' : '')
+          + '，累计 ' + res.total + ' 条'
+          + (res.headerFound ? '（按表头映射，IP 已还原）' : '（按列顺序映射）'))
+      }
+    }
+    reader.onerror = () => toast('文件读取失败')
+    reader.readAsArrayBuffer(file)
+  } else {
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      importTextValue.value = String((ev.target && ev.target.result) || '')
+      doImport(importTextValue.value)
+    }
+    reader.onerror = () => toast('文件读取失败，请改用粘贴方式')
+    reader.readAsText(file, 'UTF-8')
   }
-  reader.onerror = () => toast('文件读取失败，请改用粘贴方式')
-  reader.readAsText(file, 'UTF-8')
   e.target.value = ''
 }
 
@@ -153,20 +180,6 @@ function toggleSecrets() {
 function copyAll() {
   if (!records.value.length) { toast('暂无可复制的记录'); return }
   copyText(toTSV(records.value))
-}
-
-function exportCSV() {
-  if (!records.value.length) { toast('暂无可导出的记录'); return }
-  const blob = new Blob([toCSV(records.value)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = '账号解析结果.csv'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-  toast('CSV 已导出（全部累计记录，八列）')
 }
 
 function wipe() {
@@ -194,12 +207,46 @@ function cleanDup() {
     : '无需清理')
 }
 
-function saveList() {
+async function saveList() {
   if (!records.value.length) { toast('暂无记录可保存'); return }
-  const saved = persist()
-  toast(saved
-    ? '已保存 ' + records.value.length + ' 条到本地存储'
-    : '本地保存失败，请导出 CSV 备份')
+  const buffer = toXlsxMergedIP(records.value)
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const fileName = '账号解析结果.xlsx'
+  const count = records.value.length
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: fileName,
+        types: [{
+          description: 'Excel 文件',
+          accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
+        }],
+      })
+      const writable = await handle.createWritable()
+      await writable.write(blob)
+      await writable.close()
+      saveDialog.value = { open: true, path: handle.name, count, mobile: false }
+      return
+    } catch (e) {
+      if (e && e.name === 'AbortError') return
+      // 不支持或出错时回退到普通下载
+    }
+  }
+
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  saveDialog.value = { open: true, path: fileName, count, mobile: true }
+}
+
+function closeSaveDialog() {
+  saveDialog.value.open = false
 }
 
 function removeAt(index) {
@@ -326,7 +373,6 @@ onUnmounted(() => {
             <button class="ghost" @click="inputText = ''; toast('输入框已清空，本地记录保持不变')">清空输入框</button>
             <span class="spacer"></span>
             <button @click="copyAll">复制全部（TSV）</button>
-            <button @click="exportCSV">导出 CSV</button>
             <button class="danger" @click="wipe">清空本地数据</button>
           </div>
         </div>
@@ -334,18 +380,18 @@ onUnmounted(() => {
 
       <section class="card">
         <div class="card-head">
-          <h2>导入此前导出的数据<span class="hint">CSV / TSV · 自动识别表头</span></h2>
+          <h2>导入此前导出的数据<span class="hint">Excel / CSV / TSV · 自动识别表头</span></h2>
           <span class="hint">去重追加，导入后即时回显</span>
         </div>
         <div class="card-body">
-          <textarea id="importText" v-model="importTextValue" spellcheck="false" placeholder="粘贴此前导出的 CSV / TSV 内容（含表头或纯数据行均可），或选择文件自动读取"></textarea>
+          <textarea id="importText" v-model="importTextValue" spellcheck="false" placeholder="粘贴 CSV / TSV 内容（含表头或纯数据行均可），或选择 Excel / CSV 文件自动读取"></textarea>
           <div class="toolbar">
-            <button class="primary" @click="fileInput && fileInput.click()">选择 CSV 文件</button>
+            <button class="primary" @click="fileInput && fileInput.click()">选择文件（Excel / CSV）</button>
             <button @click="importFromText">导入并追加</button>
             <button class="ghost" @click="clearImport">清空导入框</button>
-            <input ref="fileInput" type="file" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values" hidden @change="onFileChange">
+            <input ref="fileInput" type="file" accept=".xlsx,.csv,.tsv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/tab-separated-values" hidden @change="onFileChange">
           </div>
-          <p class="import-hint">兼容本工具导出的八列 CSV（手机编号、IP、账号…地区）、上一版六列 CSV，以及「复制全部」的 TSV 文本。按表头名映射列，列顺序可乱；无表头时按固定列顺序解析。文件读取与解析均在本地完成，不会上传；重复记录按当前去重依据跳过。</p>
+          <p class="import-hint">兼容本工具导出的 xlsx（IP 合并单元格会自动还原）、八列 / 六列 CSV，以及「复制全部」的 TSV 文本。按表头名映射列，列顺序可乱；无表头时按固定列顺序解析。文件读取与解析均在本地完成，不会上传；重复记录按当前去重依据跳过。</p>
         </div>
       </section>
 
@@ -373,7 +419,7 @@ onUnmounted(() => {
           </select>
           <button class="danger" @click="cleanDup">清理重复</button>
             <button @click="toggleSecrets">{{ showSecrets ? '隐藏密码' : '显示密码' }}</button>
-          <button @click="saveList" title="把当前列表写入浏览器本地存储">保存列表数据</button>
+          <button class="primary" @click="saveList" title="保存为 Excel 文件">保存列表数据</button>
           <span class="dedup-summary" :class="{ 'has-dup': dedup.dupCount }">{{ dedupSummary }}</span>
         </div>
         <div class="table-scroll">
@@ -493,8 +539,8 @@ onUnmounted(() => {
             <ul>
               <li>去重依据同时作用于「追加 / 导入时自动跳过」与「手动清理重复」，切换后立即重新标记，设置保存在本地。</li>
               <li>重复行以浅红底色标出，第 2 条及之后标「重复」，每组第 1 条标「保留」；清理时每组只保留最早添加的一条。</li>
-              <li>导入支持八列 / 六列 CSV 与 TSV，按表头名映射，导入即回显并写入本地存储。</li>
-              <li>导出 CSV / 复制 TSV 按八列顺序输出；手动字段可在表格中逐条编辑，旧记录缺少时自动补空值。</li>
+              <li>导入支持 xlsx（IP 合并单元格自动还原）、八列 / 六列 CSV 与 TSV，按表头名映射，导入即回显并写入本地存储。</li>
+              <li>导出为 xlsx（IP 在第一列并合并相同项）/ 复制 TSV 按八列顺序输出；手动字段可在表格中逐条编辑，旧记录缺少时自动补空值。</li>
             </ul>
           </div>
           <div class="note">
@@ -517,6 +563,18 @@ onUnmounted(() => {
     </div>
 
     <div class="toast" :class="{ show: toastShow }" role="status" aria-live="polite">{{ toastMsg }}</div>
+
+    <div v-if="saveDialog.open" class="save-mask" @click.self="closeSaveDialog">
+      <div class="save-dialog">
+        <div class="save-icon">✓</div>
+        <h3>保存成功</h3>
+        <p class="save-count">共 {{ saveDialog.count }} 条记录已导出为 Excel 文件</p>
+        <p class="save-path">{{ saveDialog.path }}</p>
+        <p v-if="saveDialog.mobile" class="save-note">文件已保存到手机的默认下载目录，可在「下载」或「文件」应用中查看。</p>
+        <p v-else class="save-note">文件已保存到你选择的位置。</p>
+        <button type="button" class="primary save-ok" @click="closeSaveDialog">知道了</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -744,6 +802,33 @@ code { font-family: var(--mono); background: #eef2f7; border-radius: 3px; paddin
   transition: opacity .18s, transform .18s; z-index: 99;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+.save-mask {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  background: rgba(15, 23, 42, .55); padding: 20px;
+}
+.save-dialog {
+  width: min(420px, 100%); background: #fff; border-radius: 18px;
+  padding: 40px 32px 32px; text-align: center;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .35);
+}
+.save-icon {
+  width: 72px; height: 72px; margin: 0 auto 20px;
+  display: grid; place-items: center; border-radius: 50%;
+  background: var(--ok-bg); color: var(--ok);
+  font-size: 38px; font-weight: 700; line-height: 1;
+  border: 3px solid #a7f3d0;
+}
+.save-dialog h3 { margin: 0 0 12px; font-size: 26px; color: var(--text); }
+.save-count { margin: 0 0 10px; font-size: 16px; color: var(--text); font-weight: 600; }
+.save-path {
+  margin: 0 0 18px; font-family: var(--mono); font-size: 13px;
+  color: var(--primary); background: var(--surface-soft);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px; word-break: break-all;
+}
+.save-note { margin: 0 0 24px; font-size: 13px; color: var(--text-sub); line-height: 1.7; }
+.save-ok { width: 100%; padding: 12px; font-size: 16px; }
 
 @media (max-width: 720px) {
   .wrap { padding: 20px 14px 40px; }

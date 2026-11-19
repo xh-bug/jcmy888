@@ -1,4 +1,7 @@
 // 账号解析纯逻辑：不依赖 DOM，由 Vue 组件持有响应式状态并调用
+import * as XLSX from 'xlsx'
+
+export { XLSX }
 
 export const FIELDS = [
   { key: 'deviceId', label: '手机编号', manual: true },
@@ -393,4 +396,156 @@ export function toCSV(records) {
   const lines = [FIELDS.map((f) => esc(f.label)).join(',')]
   records.forEach((r) => lines.push(FIELDS.map((f) => esc(r.values[f.key])).join(',')))
   return '\ufeff' + lines.join('\r\n')
+}
+
+// 导出时把 IP 放在第一列、手机编号第二列；相同 IP 的记录排在一起，IP 只在每组首行写一次，后续行留空
+export function toCSVMergedIP(records) {
+  const esc = (v) => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'
+  const exportKeys = [
+    'ip', 'deviceId', 'account', 'password', 'email', 'emailPassword', 'decodeUrl', 'region',
+  ]
+  const exportFields = exportKeys.map((key) => FIELDS.find((f) => f.key === key))
+
+  const groups = new Map()
+  records.forEach((r) => {
+    const ip = r.values.ip || ''
+    if (!groups.has(ip)) groups.set(ip, [])
+    groups.get(ip).push(r)
+  })
+
+  const lines = [exportFields.map((f) => esc(f.label)).join(',')]
+  groups.forEach((group) => {
+    group.forEach((r, idx) => {
+      const values = exportFields.map((f) => {
+        const v = f.key === 'ip' && idx > 0 ? '' : r.values[f.key]
+        return esc(v)
+      })
+      lines.push(values.join(','))
+    })
+  })
+  return '\ufeff' + lines.join('\r\n')
+}
+
+// 导出 xlsx：IP 在第一列，相同 IP 合并单元格，手机编号第二列
+export function toXlsxMergedIP(records) {
+  const exportKeys = ['ip', 'deviceId', 'account', 'password', 'email', 'emailPassword', 'decodeUrl', 'region']
+  const labels = exportKeys.map((key) => FIELDS.find((f) => f.key === key).label)
+
+  const groups = new Map()
+  records.forEach((r) => {
+    const ip = r.values.ip || ''
+    if (!groups.has(ip)) groups.set(ip, [])
+    groups.get(ip).push(r)
+  })
+
+  const aoa = [labels]
+  const merges = []
+  let rowIndex = 1
+
+  groups.forEach((group) => {
+    group.forEach((r, idx) => {
+      aoa.push(exportKeys.map((key) => (key === 'ip' && idx > 0 ? null : (r.values[key] || ''))))
+    })
+    if (group.length > 1) {
+      merges.push({ s: { r: rowIndex, c: 0 }, e: { r: rowIndex + group.length - 1, c: 0 } })
+    }
+    rowIndex += group.length
+  })
+
+  const sheet = XLSX.utils.aoa_to_sheet(aoa)
+  sheet['!merges'] = merges
+  sheet['!cols'] = [
+    { wch: 18 }, { wch: 14 }, { wch: 20 }, { wch: 18 },
+    { wch: 34 }, { wch: 20 }, { wch: 50 }, { wch: 14 },
+  ]
+  const book = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(book, sheet, '账号数据')
+  return XLSX.write(book, { bookType: 'xlsx', type: 'array' })
+}
+
+// 解析 xlsx：把工作表按表头名映射为记录，兼容合并的 IP 单元格（向下填充）
+export function parseXlsx(buffer) {
+  let book
+  try {
+    book = XLSX.read(buffer, { type: 'array' })
+  } catch (e) {
+    return { records: [], headerFound: false, skipped: 0, error: true }
+  }
+  const name = book.SheetNames[0]
+  if (!name) return { records: [], headerFound: false, skipped: 0, error: true }
+  const sheet = book.Sheets[name]
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false })
+
+  // 合并单元格只在中左上角有值，把 IP（第 0 列）的值向下填充到合并范围内
+  const merges = sheet['!merges'] || []
+  merges.forEach((m) => {
+    if (m.s.c === 0 && m.e.c === 0) {
+      const val = rows[m.s.r] && rows[m.s.r][0]
+      for (let r = m.s.r + 1; r <= m.e.r; r++) {
+        if (!rows[r]) rows[r] = []
+        rows[r][0] = val
+      }
+    }
+  })
+
+  // 用表头名映射列（兼容导出的 IP 在前 / 手机编号在后的顺序）
+  let headerMap = null
+  let start = 0
+  const tmp = {}
+  let hits = 0
+  if (rows.length) {
+    rows[0].forEach((cell, idx) => {
+      const key = HEADER_MAP[String(cell == null ? '' : cell).trim().toLowerCase()]
+      if (key && tmp[key] === undefined) { tmp[key] = idx; hits++ }
+    })
+  }
+  if (hits >= 2) { headerMap = tmp; start = 1 }
+
+  const legacyOrder = ['account', 'password', 'email', 'emailPassword', 'decodeUrl', 'region']
+  const modernOrder = FIELDS.map((f) => f.key)
+  const out = []
+  let skipped = 0
+
+  for (let i = start; i < rows.length; i++) {
+    const cells = rows[i] || []
+    const values = {}
+    FIELDS.forEach((f) => { values[f.key] = '' })
+    if (headerMap) {
+      FIELDS.forEach((f) => {
+        const idx = headerMap[f.key]
+        if (idx !== undefined && cells[idx] !== undefined) {
+          values[f.key] = String(cells[idx] == null ? '' : cells[idx]).trim()
+        }
+      })
+    } else {
+      const order = cells.length <= 6 ? legacyOrder : modernOrder
+      order.forEach((k, idx) => {
+        if (cells[idx] !== undefined) values[k] = String(cells[idx] == null ? '' : cells[idx]).trim()
+      })
+    }
+    if (!FIELDS.some((f) => values[f.key])) { skipped++; continue }
+    const warnings = []
+    if (!values.account) warnings.push('账号为空')
+    if (!values.decodeUrl) warnings.push('邮箱解码链接为空')
+    if (!values.region) warnings.push('地区为空')
+    if (!headerMap && cells.length < 6) warnings.push('列数不足：仅 ' + cells.length + ' 列')
+    out.push({
+      values,
+      warnings,
+      extra: [],
+      raw: cells.join('\t'),
+      ok: warnings.length === 0,
+    })
+  }
+  return { records: out, headerFound: !!headerMap, skipped }
+}
+
+export function importXlsx(records, buffer) {
+  const result = parseXlsx(buffer)
+  if (result.error) return { error: true, added: 0, dup: 0, total: records.length, skipped: 0, headerFound: false, empty: true }
+  if (!result.records.length) {
+    return { added: 0, dup: 0, total: records.length, skipped: result.skipped, headerFound: result.headerFound, empty: true }
+  }
+  const res = appendRecords(records, result.records)
+  return { added: res.added, dup: res.dup, total: res.total, skipped: result.skipped, headerFound: result.headerFound, empty: false }
 }
