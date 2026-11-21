@@ -61,6 +61,19 @@ const team = [
   markets: '墨西哥 / 英国（英区）',
   mode: '日常运营',
 },
+{
+  role: '部门主管',
+  name: '邓女士',
+  initials: '邓',
+  image: '',
+  title: 'Video Editing Department Supervisor',
+  bio: '负责视频剪辑部门日常管理，统筹TikTok短视频内容制作、素材分配与成片质量把控，协同运营团队提升内容产出效率和转化表现。',
+  position: '视频剪辑部门负责人',
+  focus: ['视频剪辑统筹', '素材与成片管理', '内容团队协同'],
+  experience: '10+年',
+  markets: '美区',
+  mode: '内容制作与团队管理',
+}
 ]
 
 function openProfile(person) {
