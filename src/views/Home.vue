@@ -98,10 +98,6 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
             一站式助力品牌进入全球市场。
           </p>
           <div class="hero-actions">
-            <button type="button" class="primary-button" @click="router.push('/account')">
-              进入工具中心
-              <span>→</span>
-            </button>
           </div>
         </div>
 
