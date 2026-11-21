@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-labelledby="title desc">
+  <title id="title">董事长人物肖像示例</title>
+  <desc id="desc">穿深色西装的商务人物扁平插画肖像</desc>
+  <defs>
+    <linearGradient id="background" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dde8df"/>
+      <stop offset="1" stop-color="#b4c7b9"/>
+    </linearGradient>
+    <linearGradient id="jacket" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#263f34"/>
+      <stop offset="1" stop-color="#17291f"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="600" height="600" fill="url(#background)"/>
+  <circle cx="300" cy="300" r="245" fill="none" stroke="#eef4ef" stroke-width="2" opacity=".7"/>
+  <circle cx="300" cy="300" r="190" fill="none" stroke="#eef4ef" stroke-width="1" opacity=".45"/>
+
+  <path d="M110 600c18-132 89-195 190-195s172 63 190 195H110z" fill="url(#jacket)"/>
+  <path d="M244 410l56 74 56-74 42 190H202l42-190z" fill="#f3f5f1"/>
+  <path d="M300 484l-34 116h68l-34-116z" fill="#6d7f74"/>
+  <path d="M300 484l-26 34 26 82 26-82-26-34z" fill="#3f584b"/>
+
+  <path d="M242 348h116v92c-17 22-99 22-116 0v-92z" fill="#d8ad8c"/>
+  <ellipse cx="300" cy="292" rx="116" ry="142" fill="#dfb694"/>
+  <path d="M184 278c5-108 52-164 116-164 70 0 112 58 116 156-23-31-52-52-85-63-45 35-94 50-147 71z" fill="#27342d"/>
+  <path d="M196 260c12-91 55-137 104-137 54 0 96 48 104 137-45-14-77-38-104-72-27 34-59 58-104 72z" fill="#34473d"/>
+  <path d="M198 260c8-84 45-137 102-137 59 0 100 55 102 137-24-26-54-43-102-43-47 0-78 17-102 43z" fill="#2d3d35"/>
+
+  <ellipse cx="300" cy="290" rx="94" rx="94" fill="#dfb694"/>
+  <ellipse cx="300" cy="292" rx="104" ry="126" fill="none" stroke="#d0a17f" stroke-width="2"/>
+  <path d="M205 300c0-82 38-155 95-155 58 0 95 73 95 155v24c-12 78-48 126-95 126-49 0-84-48-95-126v-24z" fill="#dfb694"/>
+
+  <path d="M206 282c-16-9-30 2-30 26 0 31 20 53 43 51l-13-77z" fill="#d4a67f"/>
+  <path d="M394 282c16-9 30 2 30 26 0 31-20 53-43 51l13-77z" fill="#d4a67f"/>
+
+  <path d="M246 255c17-10 38-10 54-2" fill="none" stroke="#59483c" stroke-width="7" stroke-linecap="round"/>
+  <path d="M300 253c16-8 37-8 54 2" fill="none" stroke="#59483c" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="273" cy="284" rx="7" ry="6" fill="#26342d"/>
+  <ellipse cx="327" cy="284" rx="7" ry="6" fill="#26342d"/>
+  <path d="M300 286l-8 48c5 6 16 6 21 0" fill="none" stroke="#b27f61" stroke-width="5" stroke-linecap="round"/>
+  <path d="M268 371c20 16 44 16 64 0" fill="none" stroke="#936f5d" stroke-width="5" stroke-linecap="round"/>
+  <path d="M251 355c13 31 36 47 49 47 14 0 37-16 49-47" fill="#b98b72" opacity=".26"/>
+
+  <path d="M240 388c17 28 36 42 60 42 24 0 43-14 60-42v54c-18 22-40 32-60 32-21 0-43-10-60-32v-54z" fill="#d8ad8c"/>
+  <path d="M178 600c14-104 67-166 122-192l42 72 42-72c55 26 108 88 122 192H178z" fill="url(#jacket)"/>
+  <path d="M300 480l-42-72-48 192h90V480z" fill="#1d3328"/>
+  <path d="M300 480l42-72 48 192h-90V480z" fill="#22382e"/>
+  <path d="M300 480l-24 120h48l-24-120z" fill="#f2f4f0"/>
+  <path d="M300 480l-17 44h34l-17-44z" fill="#8e9d95"/>
+
+  <rect x="0" y="565" width="600" height="35" fill="#1d3026" opacity=".12"/>
+</svg>
