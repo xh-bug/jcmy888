@@ -35,19 +35,32 @@ const team = [
     markets: '美区 / 欧区',
     mode: '战略协作',
   },
-  {
-    role: '总经理',
-    name: '万先士',
-    initials: '理',
-    image: '',
-    title: 'General Manager',
-    bio: '负责市场运营、团队协作与全球化业务落地，持续提升店铺增长效率与客户服务体验。',
-    position: '市场运营与团队管理负责人',
-    focus: ['店铺运营', '市场拓展', '团队协作'],
-    experience: '10+',
-    markets: '墨西哥 / 英区',
-    mode: '日常运营',
-  },
+ {
+  role: '总经理',
+  name: '江女士',
+  initials: '江',
+  image: '',
+  title: 'General Manager',
+  bio: '负责TikTok业务整体市场运营、团队管理与全球化业务落地，持续提升店铺增长效率与客户服务体验。',
+  position: '市场运营与团队管理负责人',
+  focus: ['市场战略', '团队管理', '全球化落地'],
+  experience: '10+年',
+  markets: '墨西哥 / 英国（英区）',
+  mode: '日常运营',
+},
+{
+  role: '总监',
+  name: '万先生',
+  initials: '万',
+  image: '',
+  title: 'Director',
+  bio: '负责TikTok日常运营统筹、店铺增长执行与跨团队协同，推动市场拓展和客户服务体验持续优化。',
+  position: '市场运营执行与团队协同负责人',
+  focus: ['店铺运营', '市场拓展执行', '团队协同'],
+  experience: '10+年',
+  markets: '墨西哥 / 英国（英区）',
+  mode: '日常运营',
+},
 ]
 
 function openProfile(person) {
@@ -385,32 +398,6 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
   align-items: center;
   gap: 20px;
   margin-top: 30px;
-}
-
-.primary-button {
-  height: 48px;
-  min-width: 178px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  border-radius: 4px;
-  background: #244936;
-  color: #fff;
-  padding: 0 12px 0 18px;
-  font-family: inherit;
-  font-size: 12px;
-  cursor: pointer;
-  box-shadow: 0 14px 28px rgba(36, 73, 54, .16);
-}
-
-.primary-button span {
-  width: 25px;
-  height: 25px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(255, 255, 255, .22);
-  border-radius: 50%;
 }
 
 .hero-visual {
