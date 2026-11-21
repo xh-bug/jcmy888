@@ -22,7 +22,7 @@ export const STORE_KEY = 'account-parser.records.v1'
 export const DEDUP_STORE_KEY = 'account-parser.dedup.v1'
 
 const TOKEN_RE = /\u0001L(\d+)\u0001/
-const SEP_RE = /-{4,}/
+const SEP_RE = /-{3,}/
 
 export const DEDUP_MODES = [
   { id: 'default', label: '账号 + 邮箱账号 + 链接（默认）', keys: ['account', 'email', 'decodeUrl'] },

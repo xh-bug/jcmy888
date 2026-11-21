@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  FIELDS, SAMPLE, DEDUP_MODES, storageAvailable,
+  FIELDS, SAMPLE, DEDUP_MODES, storageAvailable, parseAll, appendRecords,
   loadRecords, saveRecords, loadDedupMode, saveDedupMode,
   scanDuplicates, removeDuplicates,
   importText, importXlsx, toTSV, toXlsxMergedIP, fmtTime, findMode,
@@ -446,7 +446,7 @@ onUnmounted(() => {
                       <td
                         v-if="f.key === 'ip'"
                         :rowspan="group.items.length"
-                        :class="['center-cell', { 'ip-group-cell': group.items.length > 1 }]"
+                        :class="['center-cell', 'ip-cell', { 'ip-group-cell': group.items.length > 1 }]"
                       >
                         <input
                           v-if="editing.index === item.index && editing.key === 'ip'"
@@ -757,7 +757,9 @@ tbody tr.row-dup:hover { background: #ffecec; }
 .cell.link { max-width: 310px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
 .cell.manual { border-bottom: 1px dashed var(--border-strong); border-radius: 0; color: var(--text); }
 .cell.manual.empty { color: var(--text-mute); font-family: var(--sans); }
-.ip-group-cell { vertical-align: middle; min-width: 160px; }
+.ip-cell { min-width: 320px; }
+.ip-cell .inline-edit { width: 280px; }
+.ip-group-cell { vertical-align: middle; }
 .ip-group-cell .cell { color: var(--danger); font-weight: 600; white-space: nowrap; }
 .ip-group-cell .cell:hover { color: #dc2626; background: #fef2f2; }
 .ip-group-cell .cell.empty { color: var(--text-mute); }
